@@ -1,0 +1,11 @@
+================================================================================
+TRAINING RUN: 20260328_163629
+MODEL TAG: custom_mlp
+INPUT: labeled_ja4_flows_malicious_only.csv
+BUNDLE: CNN\artifacts\mitre_multilabel_custom_mlp_20260328_163629_bundle.pkl
+METRICS FILE: CNN\artifacts\mitre_multilabel_custom_mlp_20260328_163629_metrics.json
+MICRO_F1: 0.977227
+MACRO_F1: 0.727976
+SAMPLES_F1: 0.986488
+SUBSET_ACCURACY: 0.954827
+HAMMING_LOSS: 0.001948
