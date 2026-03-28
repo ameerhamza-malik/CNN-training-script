@@ -24,6 +24,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report, f1_score, hamming_loss
 from sklearn.model_selection import train_test_split
+from sklearn.multiclass import OneVsRestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MaxAbsScaler, MultiLabelBinarizer, OneHotEncoder, StandardScaler
@@ -87,23 +88,6 @@ def ensure_non_empty(probabilities: np.ndarray, predictions: np.ndarray) -> np.n
     predictions[empty_mask] = 0
     predictions[empty_mask, fallback_indices] = 1
     return predictions
-
-
-def to_probability_matrix(probability_output) -> np.ndarray:
-    if isinstance(probability_output, list):
-        columns: List[np.ndarray] = []
-        for item in probability_output:
-            arr = np.asarray(item)
-            if arr.ndim == 2 and arr.shape[1] > 1:
-                columns.append(arr[:, 1])
-            else:
-                columns.append(arr.reshape(-1))
-        return np.column_stack(columns)
-
-    arr = np.asarray(probability_output)
-    if arr.ndim == 1:
-        return arr.reshape(-1, 1)
-    return arr
 
 
 def main() -> None:
@@ -282,26 +266,29 @@ def main() -> None:
     else:
         hidden_layers = (args.hidden1,)
 
-    classifier = MLPClassifier(
-        hidden_layer_sizes=hidden_layers,
-        activation="relu",
-        solver="adam",
-        alpha=args.alpha,
-        batch_size=args.batch_size,
-        learning_rate_init=args.learning_rate_init,
-        max_iter=args.max_iter,
-        early_stopping=True,
-        validation_fraction=0.1,
-        n_iter_no_change=8,
-        random_state=args.random_state,
-        verbose=False,
+    classifier = OneVsRestClassifier(
+        MLPClassifier(
+            hidden_layer_sizes=hidden_layers,
+            activation="relu",
+            solver="adam",
+            alpha=args.alpha,
+            batch_size=args.batch_size,
+            learning_rate_init=args.learning_rate_init,
+            max_iter=args.max_iter,
+            early_stopping=True,
+            validation_fraction=0.1,
+            n_iter_no_change=8,
+            random_state=args.random_state,
+            verbose=False,
+        ),
+        n_jobs=-1,
     )
 
-    print("Training custom neural network model (single multi-output MLPClassifier)...")
+    print("Training custom neural network model (OneVsRest + MLPClassifier)...")
     classifier.fit(x_train_dense, y_train)
 
     print("Evaluating on test split...")
-    probabilities = to_probability_matrix(classifier.predict_proba(x_test_dense))
+    probabilities = classifier.predict_proba(x_test_dense)
     y_pred = (probabilities >= args.threshold).astype(int)
     y_pred = ensure_non_empty(probabilities, y_pred)
 
@@ -364,7 +351,7 @@ def main() -> None:
             "dropped_labels_without_train_positive": dropped_no_train_positive_labels,
         },
         "training": {
-            "model": "MLPClassifier(multi_output)",
+            "model": "OneVsRestClassifier(MLPClassifier)",
             "model_tag": args.model_tag,
             "run_id": run_id,
             "threshold": args.threshold,
